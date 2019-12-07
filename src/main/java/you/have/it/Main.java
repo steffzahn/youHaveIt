@@ -13,18 +13,16 @@ public class Main {
     public static final int CHARGE = 2;
 
     public static void main(String[] args) {
-        System.exit(new Main().run(args));
+        System.exit(new Main().run());
     }
 
-    private int run(String[] args) {
+    private int run() {
         YearlyRateSequence sequence = new YearlyRateSequence(SMOOTHING_INTERVAL, AVERAGE_RATE);
         double pureAmount = AMOUNT;
         double amountWithCharge = AMOUNT;
-        Random rand = new Random();
 
         for(int y = 0; y<YEARS; y++) {
-            int currentRate = rand.nextInt(32)-16+AVERAGE_RATE;
-            double rate = sequence.add(currentRate);
+            double rate = sequence.next();
 
             pureAmount *= rate;
             amountWithCharge *= rate;
@@ -36,24 +34,52 @@ public class Main {
     }
 
     private static class YearlyRateSequence {
-        private int smoothingInterval;
-        private int rate;
         private List<Double> interval;
+        private double threshold;
+        private Random rand;
 
         YearlyRateSequence(int smoothingInterval, int rate) {
-            this.smoothingInterval = smoothingInterval;
-            this.rate = rate;
+            this.rand = new Random();
             this.interval = new ArrayList<>();
+            this.threshold = 1.0;
+            double convertedRate = convertRate(rate);
             for (int i = 0; i < smoothingInterval; i++) {
-                this.interval.add(convertRate(rate));
+                this.interval.add(convertedRate);
+                this.threshold *= convertedRate;
             }
         }
 
-        private double add(int rate) {
-            double current = convertRate(rate);
+        private double next() {
+            double current = nextRate();
             interval.remove(0);
             interval.add(current);
             return current;
+        }
+
+        private double nextRate() {
+            int currentRate;
+            if(up()) {
+                currentRate = rand.nextInt(16)+AVERAGE_RATE;
+            }
+            else {
+                currentRate = AVERAGE_RATE - rand.nextInt(16);
+            }
+            System.out.println(currentRate);
+            return convertRate(currentRate);
+        }
+
+        private boolean up() {
+            double summaryRate = summaryRate();
+            if(summaryRate>threshold) {
+                return (rand.nextInt(100)>70);
+            }
+            else {
+                return (rand.nextInt(100)<70);
+            }
+        }
+
+        private double summaryRate() {
+            return interval.stream().reduce(1.0, (a, b) -> a * b);
         }
 
         private static double convertRate(int rate) {
